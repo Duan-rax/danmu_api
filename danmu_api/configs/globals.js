@@ -7,11 +7,13 @@ import { Envs } from './envs.js';
  */
 export const Globals = {
   // 缓存环境变量
+  env: {},
   envs: {},
+  originalEnvVars: {},
   accessedEnvVars: {},
 
   // 静态常量
-  VERSION: '1.7.3',
+  VERSION: '1.9.3',
   MAX_LOGS: 500, // 日志存储，最多保存 500 行
   MAX_ANIMES: 100,
 
@@ -21,6 +23,8 @@ export const Globals = {
   episodeNum: 10001, // 全局变量，用于自增 ID
   logBuffer: [],
   requestHistory: new Map(), // 记录每个 IP 地址的请求历史
+  localCacheValid: false, // 本地缓存是否生效
+  localCacheInitialized: false, // 本地缓存是否已初始化
   redisValid: false, // redis是否生效
   redisCacheInitialized: false, // redis 缓存是否已初始化
   lastSelectMap: new Map(), // 存储查询关键字上次选择的animeId，用于下次match自动匹配时优先选择该anime
@@ -32,15 +36,29 @@ export const Globals = {
   },
   searchCache: new Map(), // 搜索结果缓存，存储格式：{ keyword: { results, timestamp } }
   commentCache: new Map(), // 弹幕缓存，存储格式：{ videoUrl: { comments, timestamp } }
+  deployPlatform: '', // 部署平台配置
+  currentToken: '', // 标识当前可用token
 
   /**
    * 初始化全局变量，加载环境变量依赖
    * @param {Object} env 环境对象
-   * @param {string} deployPlatform 部署平台
    * @returns {Object} 全局配置对象
    */
-  init(env = {}, deployPlatform = 'node') {
-    this.envs = Envs.load(env, deployPlatform);
+  init(env = {}) {
+    this.env = env;
+    this.envs = Envs.load(this.env);
+    this.originalEnvVars = Object.fromEntries(Envs.getOriginalEnvVars());
+    this.accessedEnvVars = Object.fromEntries(Envs.getAccessedEnvVars());
+    return this.getConfig();
+  },
+
+  /**
+   * 重新初始化全局变量，加载环境变量依赖
+   * @returns {Object} 全局配置对象
+   */
+  reInit() {
+    this.envs = Envs.load(this.env);
+    this.originalEnvVars = Object.fromEntries(Envs.getOriginalEnvVars());
     this.accessedEnvVars = Object.fromEntries(Envs.getAccessedEnvVars());
     return this.getConfig();
   },

@@ -650,7 +650,7 @@ export default class IqiyiSource extends BaseSource {
             links.push({
               "name": ep.order.toString(),
               "url": fullUrl,
-              "title": `【iqiyi】 ${ep.title}`
+              "title": `【qiyi】 ${ep.title}`
             });
           }
 
@@ -667,6 +667,7 @@ export default class IqiyiSource extends BaseSource {
               episodeCount: links.length,
               rating: 0,
               isFavorited: true,
+              source: "iqiyi",
             };
 
             tmpAnimes.push(transformedAnime);
@@ -769,7 +770,8 @@ export default class IqiyiSource extends BaseSource {
               "Content-Type": "application/xml",
               "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             },
-            zlibMode: true
+            zlibMode: true,
+            retries: 1,
           })
       );
     }

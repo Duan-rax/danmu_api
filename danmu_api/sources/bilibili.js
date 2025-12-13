@@ -413,7 +413,7 @@ export default class BilibiliSource extends BaseSource {
           const links = eps.map((ep, index) => ({
             name: `${index + 1}`,
             url: ep.link,
-            title: `【bilibili】 ${ep.title}`
+            title: `【bilibili1】 ${ep.title}`
           }));
 
           const numericAnimeId = convertToAsciiSum(anime.mediaId);
@@ -428,6 +428,7 @@ export default class BilibiliSource extends BaseSource {
             episodeCount: links.length,
             rating: 0,
             isFavorited: true,
+            source: "bilibili",
           };
 
           tmpAnimes.push(transformedAnime);
@@ -638,6 +639,7 @@ export default class BilibiliSource extends BaseSource {
                 "Cookie": globals.bilibliCookie
               },
               base64Data: true,
+              retries: 1,
             });
 
             return parseDanmakuBase64(res.data);
