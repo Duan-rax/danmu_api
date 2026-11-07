@@ -7,10 +7,12 @@ on:
   pull_request:
     branches:
       - main
-    if: github.repository == 'huangxd-/danmu_api'
 
 jobs:
   build:
+    # Publishing credentials belong to the upstream repository. Forks should not
+    # attempt to log in to or publish to the upstream Docker Hub namespace.
+    if: github.repository == 'huangxd-/danmu_api'
     runs-on: ubuntu-latest
 
     steps:
