@@ -1,44 +1,60 @@
 name: Fork Sync
 
-permissions:
-    contents: write
-
 on:
-    schedule:
-        - cron: "0 0 * * *"  # 每天午夜执行
-    workflow_dispatch:  # 允许手动触发
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
 
 jobs:
-    sync_with_upstream:
-        name: Sync with Upstream
-        runs-on: ubuntu-latest
-        if: ${{ github.event.repository.fork }}
+  sync_with_upstream:
+    name: Sync with Upstream
+    if: github.event.repository.fork
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Sync upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata=$(gh api "repos/$REPO")
+          parent=$(jq -r '.parent.full_name' <<< "$metadata")
+          branch=$(jq -r '.default_branch' <<< "$metadata")
+          if [ "$parent" != 'huangxd-/danmu_api' ]; then
+            echo 'Only direct forks of huangxd-/danmu_api are synchronized.'
+            exit 0
+          fi
 
-        steps:
-            - name: Checkout target repo
-              uses: actions/checkout@v5
-              with:
-                token: ${{ secrets.GITHUB_TOKEN }}
+          sync_log=$(mktemp)
+          trap 'rm -f "$sync_log"' EXIT
 
-            - name: Sync Upstream
-              uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.3
-              with:
-                  target_repo_token: ${{ secrets.GITHUB_TOKEN }}
-                  upstream_sync_repo: huangxd-/danmu_api
-                  upstream_sync_branch: main
-                  target_sync_branch: main
-                  test_mode: false
-
-            - name: Check for new commits
-              if: success()
-              run: echo "Sync completed successfully"
-
-            - name: Check for Failure
-              if: failure()
-              run: |
-                  echo "[Error] Sync failed. This might be due to:"
-                  echo "1. Changes in the upstream workflow file"
-                  echo "2. Merge conflicts that need manual resolution"
-                  echo "3. Network issues"
-                  echo "Please check the logs and consider manual sync if needed."
-                  exit 1
+          # GITHUB_TOKEN cannot update workflow files. Treat that known limitation
+          # as a manual-sync notice, while preserving failures for all other errors.
+          if gh api --method POST "repos/$REPO/merge-upstream" -f branch="$branch" >"$sync_log" 2>&1; then
+            cat "$sync_log"
+          else
+            status=$?
+            cat "$sync_log" >&2
+            if grep -Fq 'without `workflows` permission' "$sync_log"; then
+              echo '::warning title=Manual fork sync required::Upstream changed a GitHub Actions workflow. Use Sync fork in the GitHub UI to apply it.'
+              {
+                echo '### Manual fork sync required'
+                echo
+                echo 'Upstream changed a file under `.github/workflows/`, which the built-in `GITHUB_TOKEN` is not allowed to update.'
+                echo 'Open the repository on GitHub and choose **Sync fork → Update branch**.'
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            exit "$status"
+          fi
